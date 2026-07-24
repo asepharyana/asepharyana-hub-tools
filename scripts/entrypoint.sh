@@ -50,7 +50,14 @@ WORKER_PID=$!
 
 # ── 4. Start Next.js Frontend (port 3000) ──
 
-if [ -f /app/node_modules/.bin/next ]; then
+if command -v bun &>/dev/null && [ -f /app/node_modules/.bin/next ]; then
+  echo "Starting Next.js frontend on port 3000..."
+  cd /app
+  NODE_ENV=production RUST_GATEWAY_URL=http://localhost:3001 \
+    bun run next start --port 3000 &
+  NEXT_PID=$!
+  echo "Next.js frontend started (PID: $NEXT_PID)"
+elif command -v node &>/dev/null && [ -f /app/node_modules/.bin/next ]; then
   echo "Starting Next.js frontend on port 3000..."
   cd /app
   NODE_ENV=production RUST_GATEWAY_URL=http://localhost:3001 \
@@ -58,7 +65,7 @@ if [ -f /app/node_modules/.bin/next ]; then
   NEXT_PID=$!
   echo "Next.js frontend started (PID: $NEXT_PID)"
 else
-  echo "WARNING: Next.js not found, frontend will not be served"
+  echo "WARNING: Node.js/bun not found, frontend will not be served"
   NEXT_PID=""
 fi
 
