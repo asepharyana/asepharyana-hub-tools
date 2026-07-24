@@ -26,7 +26,29 @@ pub struct ScanResult {
 }
 
 /// Run the full scanner pipeline with all stages.
+/// Wrapped in catch_unwind to prevent imageproc panics from killing the worker.
 pub async fn process(
+    job: &Job,
+    config: &WorkerConfig,
+    progress: &ProgressReporter,
+) -> Result<ScanResult, Box<dyn std::error::Error + Send + Sync>> {
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        process_inner(job, config, progress)
+    }));
+
+    match result {
+        Ok(fut) => fut.await,
+        Err(panic) => {
+            let msg = panic
+                .downcast_ref::<&str>()
+                .unwrap_or(&"Unknown panic in scanner pipeline");
+            Err(format!("Pipeline panicked: {}", msg).into())
+        }
+    }
+}
+
+/// Inner pipeline implementation (runs inside catch_unwind).
+async fn process_inner(
     job: &Job,
     config: &WorkerConfig,
     progress: &ProgressReporter,

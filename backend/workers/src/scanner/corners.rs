@@ -1,3 +1,5 @@
+use std::panic::catch_unwind;
+
 use image::GrayImage;
 use imageproc::contours::find_contours;
 
@@ -6,16 +8,18 @@ use tools_common::error::PipelineError;
 /// Represents a detected corner point.
 pub type CornerPoint = (f64, f64);
 
-/// The fallback reason if corner detection fails.
-pub enum FallbackReason {
-    NoContours,
-    NoRectangularContour,
-    TooSmall,
-}
-
 /// Find the 4 corners of the document from an edge image.
+/// Wrapped in catch_unwind because imageproc's find_contours can panic.
 pub fn detect_corners(edges: &GrayImage) -> Result<[CornerPoint; 4], FallbackReason> {
-    let contours = find_contours::<u8>(edges);
+    let result = catch_unwind(std::panic::AssertUnwindSafe(|| {
+        find_contours::<u8>(edges)
+    }));
+
+    let contours = match result {
+        Ok(c) => c,
+        Err(_) => return Err(FallbackReason::FindContoursPanic),
+    };
+
     if contours.is_empty() {
         return Err(FallbackReason::NoContours);
     }
@@ -35,7 +39,10 @@ pub fn detect_corners(edges: &GrayImage) -> Result<[CornerPoint; 4], FallbackRea
     });
 
     for points in sorted.iter().take(5) {
-        if let Some(corners) = approx_quadrilateral(points) {
+        let approx = catch_unwind(std::panic::AssertUnwindSafe(|| {
+            approx_quadrilateral(points)
+        }));
+        if let Ok(Some(corners)) = approx {
             let ordered = order_corners(&corners);
             return Ok(ordered);
         }
@@ -56,6 +63,15 @@ pub fn detect_corners(edges: &GrayImage) -> Result<[CornerPoint; 4], FallbackRea
     Err(FallbackReason::NoContours)
 }
 
+/// The fallback reason if corner detection fails.
+#[derive(Debug)]
+pub enum FallbackReason {
+    FindContoursPanic,
+    NoContours,
+    NoRectangularContour,
+    TooSmall,
+}
+
 /// Compute the area of a contour using the Shoelace formula.
 fn contour_area_slice(points: &[(i32, i32)]) -> f64 {
     let n = points.len();
@@ -71,7 +87,7 @@ fn contour_area_slice(points: &[(i32, i32)]) -> f64 {
     area.abs() / 2.0
 }
 
-/// Approximate a contour to a quadrilateral.
+/// Approximate a contour to a quadrilateral using extreme points.
 fn approx_quadrilateral(points: &[(i32, i32)]) -> Option<Vec<CornerPoint>> {
     let n = points.len();
     if n < 4 {
@@ -97,24 +113,21 @@ fn order_corners(points: &[CornerPoint]) -> [CornerPoint; 4] {
     let mut ordered = [(0.0, 0.0); 4];
 
     if pts.len() >= 4 {
-        // Sort by position
-        // TL = min(x+y), BR = max(x+y)
         pts.sort_by(|a, b| {
             (a.0 + a.1)
                 .partial_cmp(&(b.0 + b.1))
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
-        ordered[0] = pts[0]; // TL
-        ordered[2] = pts[3]; // BR
+        ordered[0] = pts[0];
+        ordered[2] = pts[3];
 
-        // TR = max(x - y), BL = min(x - y)
         pts.sort_by(|a, b| {
             (a.0 - a.1)
                 .partial_cmp(&(b.0 - b.1))
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
-        ordered[1] = pts[3]; // TR
-        ordered[3] = pts[0]; // BL
+        ordered[1] = pts[3];
+        ordered[3] = pts[0];
     }
 
     ordered
@@ -129,16 +142,15 @@ fn bounding_rect_slice(points: &[(i32, i32)]) -> (i32, i32, i32, i32) {
     (left, top, right, bottom)
 }
 
-/// Detect corners with fallback: full resolution, then half, then error.
+/// Detect corners with panic-safe fallback.
 pub fn detect_corners_with_fallback(
     edges: &GrayImage,
 ) -> Result<[CornerPoint; 4], PipelineError> {
-    // Attempt 1: Full resolution
     if let Ok(corners) = detect_corners(edges) {
         return Ok(corners);
     }
 
-    // Attempt 2: Half resolution
+    // Attempt 2: half resolution
     let (w, h) = (edges.width() / 2, edges.height() / 2);
     if w > 10 && h > 10 {
         let half = image::imageops::resize(
@@ -152,9 +164,10 @@ pub fn detect_corners_with_fallback(
         }
     }
 
-    Err(PipelineError::CornerDetection(
-        "Could not detect document corners automatically".to_string(),
-    ))
+    // Final fallback: use image bounds as corners (full image)
+    let (w, h) = (edges.width() as f64, edges.height() as f64);
+    tracing::warn!("Corner detection failed, using full image bounds");
+    Ok([(0.0, 0.0), (w, 0.0), (w, h), (0.0, h)])
 }
 
 #[cfg(test)]
@@ -173,5 +186,13 @@ mod tests {
         let points = vec![(10, 20), (100, 30), (90, 150), (5, 140)];
         let rect = bounding_rect_slice(&points);
         assert_eq!(rect, (5, 20, 100, 150));
+    }
+
+    #[test]
+    fn test_order_corners() {
+        let pts = vec![(0.0, 100.0), (100.0, 100.0), (100.0, 0.0), (0.0, 0.0)];
+        let ordered = order_corners(&pts);
+        assert_eq!(ordered[0], (0.0, 0.0)); // TL
+        assert_eq!(ordered[2], (100.0, 100.0)); // BR
     }
 }
