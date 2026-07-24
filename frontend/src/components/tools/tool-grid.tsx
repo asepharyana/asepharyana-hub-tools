@@ -15,6 +15,7 @@ import {
   Scissors,
   Film,
   Mic,
+  MoveHorizontal,
 } from "lucide-react";
 import { ToolCard } from "./tool-card";
 

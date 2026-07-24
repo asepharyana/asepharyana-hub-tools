@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useState, useEffect } from "react";
-import { Sun, Moon, Github, Sparkles } from "lucide-react";
+import { Sun, Moon, ExternalLink, Sparkles } from "lucide-react";
 
 export function Header() {
   const { theme, setTheme } = useTheme();
@@ -61,7 +61,7 @@ export function Header() {
             className="p-2 rounded-md hover:bg-muted transition-colors"
             aria-label="GitHub"
           >
-            <Github className="h-4 w-4" />
+            <ExternalLink className="h-4 w-4" />
           </a>
         </div>
       </div>

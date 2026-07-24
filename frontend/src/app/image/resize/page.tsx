@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { ImageResize } from "lucide-react";
+import { Crop } from "lucide-react";
 import { ToolLayout } from "@/components/tools/tool-layout";
 import { UploadZone } from "@/components/tools/upload-zone";
 import { useUpload } from "@/hooks/use-upload";
@@ -57,7 +57,7 @@ export default function ImageResizePage() {
     <ToolLayout
       title="Resize Image"
       description="Ubah dimensi gambar"
-      icon={ImageResize}
+      icon={Crop}
       phase={1}
     >
       {pageState === "upload" && (
