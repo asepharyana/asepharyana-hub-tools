@@ -1,10 +1,11 @@
 #!/bin/bash
 # Tools Service Entrypoint
-# Starts both the Gateway (Axum HTTP server) and Workers (NATS consumers)
+# Starts: Next.js frontend (port 3000), Rust gateway (port 3001), Workers (NATS consumers)
 
 set -e
 
-# Find gateway binary (named tools-gateway or in gateway/ subdir)
+# ── 1. Find binaries ──
+
 GATEWAY_BIN=""
 for candidate in /app/gateway/tools-gateway /app/gateway /app/tools-gateway /app/target/release/tools-gateway; do
   if [ -f "$candidate" ] && [ -x "$candidate" ]; then
@@ -19,7 +20,6 @@ if [ -z "$GATEWAY_BIN" ]; then
   exit 1
 fi
 
-# Find workers binary
 WORKER_BIN=""
 for candidate in /app/workers/tools-workers /app/workers /app/tools-workers /app/target/release/tools-workers; do
   if [ -f "$candidate" ] && [ -x "$candidate" ]; then
@@ -34,22 +34,45 @@ if [ -z "$WORKER_BIN" ]; then
   exit 1
 fi
 
-echo "Starting tools-gateway ($GATEWAY_BIN)..."
+# ── 2. Start Rust Gateway (port 3001) ──
+
+echo "Starting tools-gateway ($GATEWAY_BIN) on port 3001..."
 "$GATEWAY_BIN" &
 GATEWAY_PID=$!
 
 sleep 1
 
+# ── 3. Start Rust Workers ──
+
 echo "Starting tools-workers ($WORKER_BIN)..."
 "$WORKER_BIN" &
 WORKER_PID=$!
 
-# Handle graceful shutdown
-trap "echo 'Shutting down...'; kill $GATEWAY_PID $WORKER_PID 2>/dev/null; wait; exit 0" SIGINT SIGTERM
+# ── 4. Start Next.js Frontend (port 3000) ──
 
-# Wait for either process to exit
-wait -n $GATEWAY_PID $WORKER_PID
+if [ -f /app/node_modules/.bin/next ]; then
+  echo "Starting Next.js frontend on port 3000..."
+  cd /app
+  NODE_ENV=production RUST_GATEWAY_URL=http://localhost:3001 \
+    node /app/node_modules/.bin/next start --port 3000 &
+  NEXT_PID=$!
+  echo "Next.js frontend started (PID: $NEXT_PID)"
+else
+  echo "WARNING: Next.js not found, frontend will not be served"
+  NEXT_PID=""
+fi
 
-# If one exits, kill the other
-kill $GATEWAY_PID $WORKER_PID 2>/dev/null
+# ── 5. Graceful shutdown ──
+
+trap "echo 'Shutting down...'; kill $GATEWAY_PID $WORKER_PID $NEXT_PID 2>/dev/null; wait; exit 0" SIGINT SIGTERM
+
+# Wait for any process to exit
+if [ -n "$NEXT_PID" ]; then
+  wait -n $GATEWAY_PID $WORKER_PID $NEXT_PID
+else
+  wait -n $GATEWAY_PID $WORKER_PID
+fi
+
+# If one exits, kill the others
+kill $GATEWAY_PID $WORKER_PID $NEXT_PID 2>/dev/null
 exit 1
