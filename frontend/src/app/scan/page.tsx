@@ -10,14 +10,29 @@ import { useJobStatus } from "@/hooks/use-job-status";
 
 type PageState = "upload" | "processing" | "result" | "error";
 
+interface ScanOptions {
+  ocr: boolean;
+  enhance: boolean;
+  output_format: "pdf" | "jpeg" | "png";
+  dpi: number;
+  color_mode: "black_and_white" | "grayscale" | "color";
+}
+
 export default function ScanPage() {
   const [pageState, setPageState] = useState<PageState>("upload");
   const [jobId, setJobId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [opts, setOpts] = useState<ScanOptions>({
+    ocr: true,
+    enhance: true,
+    output_format: "pdf",
+    dpi: 300,
+    color_mode: "black_and_white",
+  });
 
   const { upload, isUploading } = useUpload({
     tool: "scan",
-    options: { ocr: true, enhance: true, output_format: "pdf", dpi: 300 },
+    options: opts as unknown as Record<string, unknown>,
   });
 
   const handleComplete = useCallback(() => {
@@ -75,15 +90,83 @@ export default function ScanPage() {
             maxSizeMB={50}
           />
 
-          {/* Options info */}
-          <div className="p-4 rounded-lg border glass text-sm text-muted-foreground">
-            <p className="font-medium text-foreground mb-2">Scan Options</p>
-            <ul className="space-y-1">
-              <li>• OCR: Enabled (English + Indonesian)</li>
-              <li>• Output: Searchable PDF</li>
-              <li>• DPI: 300</li>
-              <li>• Auto-enhance: On</li>
-            </ul>
+          {/* Interactive Options */}
+          <div className="p-6 rounded-xl border glass space-y-4">
+            <h3 className="font-semibold">Scan Options</h3>
+
+            {/* OCR Toggle */}
+            <label className="flex items-center justify-between">
+              <span className="text-sm">OCR (Tesseract)</span>
+              <input
+                type="checkbox"
+                checked={opts.ocr}
+                onChange={(e) => setOpts({ ...opts, ocr: e.target.checked })}
+                className="toggle"
+              />
+            </label>
+
+            {/* Enhance Toggle */}
+            <label className="flex items-center justify-between">
+              <span className="text-sm">Auto-enhance</span>
+              <input
+                type="checkbox"
+                checked={opts.enhance}
+                onChange={(e) => setOpts({ ...opts, enhance: e.target.checked })}
+                className="toggle"
+              />
+            </label>
+
+            {/* Output Format */}
+            <label className="flex items-center justify-between">
+              <span className="text-sm">Output Format</span>
+              <select
+                value={opts.output_format}
+                onChange={(e) =>
+                  setOpts({
+                    ...opts,
+                    output_format: e.target.value as ScanOptions["output_format"],
+                  })
+                }
+                className="bg-muted border rounded px-2 py-1 text-sm"
+              >
+                <option value="pdf">Searchable PDF</option>
+                <option value="jpeg">JPEG Image</option>
+                <option value="png">PNG Image</option>
+              </select>
+            </label>
+
+            {/* Color Mode */}
+            <label className="flex items-center justify-between">
+              <span className="text-sm">Color Mode</span>
+              <select
+                value={opts.color_mode}
+                onChange={(e) =>
+                  setOpts({
+                    ...opts,
+                    color_mode: e.target.value as ScanOptions["color_mode"],
+                  })
+                }
+                className="bg-muted border rounded px-2 py-1 text-sm"
+              >
+                <option value="black_and_white">Black & White</option>
+                <option value="grayscale">Grayscale</option>
+                <option value="color">Color</option>
+              </select>
+            </label>
+
+            {/* DPI */}
+            <label className="flex items-center justify-between">
+              <span className="text-sm">DPI</span>
+              <select
+                value={opts.dpi}
+                onChange={(e) => setOpts({ ...opts, dpi: Number(e.target.value) })}
+                className="bg-muted border rounded px-2 py-1 text-sm"
+              >
+                <option value={150}>150 (draft)</option>
+                <option value={300}>300 (standard)</option>
+                <option value={600}>600 (high)</option>
+              </select>
+            </label>
           </div>
         </div>
       )}

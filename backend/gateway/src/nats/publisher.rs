@@ -16,8 +16,8 @@ impl NatsPublisher {
 
     /// Publish a job to the appropriate NATS subject.
     pub async fn publish_job(nats: &Client, tool: &Tool, job: &Job) -> Result<(), NatsError> {
-        let prefix = tool.subject_prefix();
-        let subject = nats::job_subject(prefix, &job.id.to_string());
+        let group = tool.group();
+        let subject = nats::job_subject(group, &job.id.to_string());
         let payload = serde_json::to_vec(job)
             .map_err(|e| NatsError::Publish(e.to_string()))?;
 

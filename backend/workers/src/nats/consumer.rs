@@ -53,18 +53,16 @@ impl JobConsumer {
             .await?;
         tracing::info!("Subscribed to tools.scheduler.cleanup");
 
-        let redis_clone = redis.clone();
-        let config_clone = config.clone();
+        // Process messages concurrently — use tokio::spawn so ALL run
+        tokio::spawn(Self::process_subscription(scan_sub, redis.clone(), config.clone()));
+        tokio::spawn(Self::process_subscription(image_sub, redis.clone(), config.clone()));
+        tokio::spawn(Self::process_subscription(pdf_sub, redis.clone(), config.clone()));
+        tokio::spawn(Self::process_cleanup(cleanup_sub, config.clone()));
 
-        // Process messages concurrently
-        tokio::select! {
-            _ = Self::process_subscription(scan_sub, redis.clone(), config.clone()) => {},
-            _ = Self::process_subscription(image_sub, redis.clone(), config.clone()) => {},
-            _ = Self::process_subscription(pdf_sub, redis.clone(), config.clone()) => {},
-            _ = Self::process_cleanup(cleanup_sub, config_clone) => {},
+        // Wait forever so the process doesn't exit
+        loop {
+            tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
         }
-
-        Ok(())
     }
 
     /// Process messages from a NATS subscription.

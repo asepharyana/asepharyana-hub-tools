@@ -36,21 +36,21 @@ pub enum Tool {
 }
 
 impl Tool {
-    /// Returns the NATS subject prefix for this tool.
-    pub fn subject_prefix(&self) -> &'static str {
+    /// Returns the NATS subject group (without "tools." prefix).
+    pub fn group(&self) -> &'static str {
         match self {
-            Tool::Scan => "tools.scan",
+            Tool::Scan => "scan",
             Tool::ImageCompress
             | Tool::ImageResize
             | Tool::ImageConvert
-            | Tool::RemoveBg => "tools.image",
+            | Tool::RemoveBg => "image",
             Tool::PdfMerge
             | Tool::PdfSplit
             | Tool::ImagesToPdf
             | Tool::PdfCompress
-            | Tool::PdfToImages => "tools.pdf",
-            Tool::VideoCompress | Tool::VideoTrim | Tool::GifMaker => "tools.video",
-            Tool::AudioExtract | Tool::AudioConvert => "tools.audio",
+            | Tool::PdfToImages => "pdf",
+            Tool::VideoCompress | Tool::VideoTrim | Tool::GifMaker => "video",
+            Tool::AudioExtract | Tool::AudioConvert => "audio",
         }
     }
 

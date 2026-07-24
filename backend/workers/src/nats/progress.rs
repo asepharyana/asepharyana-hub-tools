@@ -50,7 +50,7 @@ impl ProgressReporter {
             message: message.to_string(),
         };
 
-        let subject = format!("tools.{}.progress.{}", self.tool.subject_prefix(), self.job_id);
+        let subject = format!("tools.{}.progress.{}", self.tool.group(), self.job_id);
         if let Ok(payload) = serde_json::to_vec(&progress_msg) {
             let _ = self.nats.publish(subject, payload.into()).await;
         }

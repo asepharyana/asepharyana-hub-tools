@@ -15,10 +15,11 @@ export default function ImageCompressPage() {
   const [pageState, setPageState] = useState<PageState>("upload");
   const [jobId, setJobId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [quality, setQuality] = useState(80);
 
   const { upload } = useUpload({
     tool: "image-compress",
-    options: { quality: 80 },
+    options: { quality },
   });
 
   const handleComplete = useCallback(() => setPageState("result"), []);
@@ -61,11 +62,35 @@ export default function ImageCompressPage() {
       phase={1}
     >
       {pageState === "upload" && (
-        <UploadZone
-          accept="image/*"
-          tool="image-compress"
-          onUpload={handleUpload}
-        />
+        <div className="space-y-6">
+          {/* Quality Slider */}
+          <div className="p-6 rounded-xl border glass space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Quality</span>
+              <span className="text-sm font-mono text-muted-foreground">
+                {quality}%
+              </span>
+            </div>
+            <input
+              type="range"
+              min={1}
+              max={100}
+              value={quality}
+              onChange={(e) => setQuality(Number(e.target.value))}
+              className="w-full"
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Kecil</span>
+              <span>Besar</span>
+            </div>
+          </div>
+
+          <UploadZone
+            accept="image/*"
+            tool="image-compress"
+            onUpload={handleUpload}
+          />
+        </div>
       )}
 
       {pageState === "processing" && jobId && (
@@ -79,10 +104,7 @@ export default function ImageCompressPage() {
       )}
 
       {pageState === "result" && result && (
-        <ResultPreview
-          result={result}
-          onProcessAnother={handleRetry}
-        />
+        <ResultPreview result={result} onProcessAnother={handleRetry} />
       )}
 
       {pageState === "error" && (

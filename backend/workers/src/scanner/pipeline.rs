@@ -1,7 +1,6 @@
 use std::path::Path;
 use std::time::Instant;
 
-use image::DynamicImage;
 use tools_common::error::PipelineError;
 use tools_common::types::Job;
 
@@ -75,13 +74,11 @@ pub async fn process(
     report(progress, "enhance", 90, "Mengoptimalkan kualitas...").await;
     let final_img = enhance_final(&final_img);
 
-    // Stage 9: Save output (93-100%)
+    // Stage 9: OCR + PDF/PNG output (93-100%)
     report(progress, "save", 95, "Menyimpan hasil...").await;
 
-    let output_filename = format!("{}.png", progress.job_id());
-    let output_path = output_dir.join(&output_filename);
-
-    final_img.save(&output_path)?;
+    let job_id = progress.job_id();
+    let (output_path, ocr_text) = generate_output(&final_img, &job_id, &output_dir, &job.options)?;
 
     let elapsed = start.elapsed().as_millis() as u64;
 
@@ -95,9 +92,77 @@ pub async fn process(
         output_path: output_path.to_string_lossy().to_string(),
         page_count: 1,
         file_size: tokio::fs::metadata(&output_path).await.map(|m| m.len()).unwrap_or(0),
-        ocr_text: None,
+        ocr_text,
         processing_time_ms: elapsed,
     })
+}
+
+/// Generate final output file: PDF with OCR text layer, or fallback to PNG.
+fn generate_output(
+    final_img: &image::GrayImage,
+    job_id: &uuid::Uuid,
+    output_dir: &Path,
+    options: &serde_json::Value,
+) -> Result<(std::path::PathBuf, Option<String>), Box<dyn std::error::Error + Send + Sync>> {
+    #[cfg(feature = "tesseract")]
+    {
+        let ocr_enabled = options
+            .get("ocr")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(true);
+
+        if ocr_enabled {
+            let lang = options
+                .get("language")
+                .and_then(|v| v.as_str())
+                .unwrap_or("eng+ind");
+
+            match super::ocr::ocr_text(final_img, lang) {
+                Ok(ocr_result) => {
+                    // Compress image as JPEG for PDF embedding
+                    let output_filename = format!("{}.pdf", job_id);
+                    let output_path = output_dir.join(&output_filename);
+                    let jpeg_data = super::pdf::compress_image_jpeg(final_img, 85)
+                        .map_err(|e| format!("JPEG compression failed: {}", e))?;
+
+                    let page_width = super::pdf::A4_WIDTH_PT;
+                    let page_height = super::pdf::A4_HEIGHT_PT;
+
+                    let pdf_data = super::pdf::generate_searchable_pdf(
+                        &jpeg_data,
+                        &ocr_result.full_text,
+                        &ocr_result.words,
+                        page_width,
+                        page_height,
+                    )?;
+
+                    std::fs::write(&output_path, &pdf_data)?;
+
+                    let ocr_text = if ocr_result.full_text.is_empty() {
+                        None
+                    } else {
+                        Some(ocr_result.full_text)
+                    };
+
+                    return Ok((output_path, ocr_text));
+                }
+                Err(e) => {
+                    tracing::warn!("OCR failed, falling back to PNG: {}", e);
+                }
+            }
+        }
+    }
+
+    #[cfg(not(feature = "tesseract"))]
+    {
+        tracing::warn!("Tesseract feature not enabled, saving as PNG");
+    }
+
+    // Fallback: save as PNG
+    let output_filename = format!("{}.png", job_id);
+    let output_path = output_dir.join(&output_filename);
+    final_img.save(&output_path)?;
+    Ok((output_path, None))
 }
 
 /// Helper to report progress.

@@ -24,6 +24,7 @@ interface JobProgress {
 interface UseJobStatusOptions {
   onComplete?: (result: JobProgress["result"]) => void;
   onError?: (error: string) => void;
+  wsBaseUrl?: string; // optional override, e.g. "wss://tools.asepharyana.my.id"
 }
 
 export function useJobStatus(jobId: string | null, options?: UseJobStatusOptions) {
@@ -40,10 +41,13 @@ export function useJobStatus(jobId: string | null, options?: UseJobStatusOptions
   const connect = useCallback(() => {
     if (!jobId) return;
 
-    // Connect directly to Rust gateway WebSocket (not via Next.js)
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const host = "localhost:3001"; // Rust gateway - wss for production
-    const url = `${protocol}//${host}/api/job/${jobId}/ws`;
+    // Determine WS base URL: from options, NEXT_PUBLIC_WS_URL, or infer from page location
+    const wsBase = options?.wsBaseUrl
+      ?? process.env.NEXT_PUBLIC_WS_URL
+      ?? (typeof window !== "undefined"
+        ? `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}`
+        : "ws://localhost:3002");
+    const url = `${wsBase}/api/job/${jobId}/ws`;
 
     const ws = new WebSocket(url);
     wsRef.current = ws;
