@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 
 interface UploadResult {
   job_id: string;
@@ -17,7 +17,7 @@ export function useUpload({ tool, options }: UseUploadOptions) {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<UploadResult | null>(null);
-  const abortRef = useState<AbortController | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const upload = useCallback(
     async (file: File): Promise<UploadResult | null> => {
@@ -34,7 +34,7 @@ export function useUpload({ tool, options }: UseUploadOptions) {
         }
 
         const controller = new AbortController();
-        abortRef[1](controller);
+        abortRef.current = controller;
 
         const response = await fetch("/api/upload", {
           method: "POST",
@@ -67,9 +67,9 @@ export function useUpload({ tool, options }: UseUploadOptions) {
   );
 
   const cancel = useCallback(() => {
-    abortRef[1]?.abort();
+    abortRef.current?.abort();
     setIsUploading(false);
-  }, [abortRef[1]]);
+  }, []);
 
   return { upload, cancel, isUploading, error, result };
 }
