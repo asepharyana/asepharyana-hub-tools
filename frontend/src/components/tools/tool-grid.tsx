@@ -82,10 +82,10 @@ const tools: ToolDefinition[] = [
   {
     id: "pdf-split",
     title: "Split PDF",
-    description: "Ekstrak halaman tertentu dari PDF. Pilih via thumbnail atau range.",
+    description: "Ekstrak halaman tertentu dari PDF. Pilih page range seperti 1-3,5,7-9.",
     icon: Split,
     href: "/pdf/split",
-    phase: 2,
+    phase: 1,
   },
   {
     id: "images-to-pdf",
@@ -98,10 +98,10 @@ const tools: ToolDefinition[] = [
   {
     id: "pdf-compress",
     title: "Compress PDF",
-    description: "Kecilin ukuran PDF dengan kompresi embedded images.",
+    description: "Kecilin ukuran PDF dengan kompresi ulang.",
     icon: FileImage,
     href: "/pdf/compress",
-    phase: 2,
+    phase: 1,
   },
   {
     id: "video-compress",

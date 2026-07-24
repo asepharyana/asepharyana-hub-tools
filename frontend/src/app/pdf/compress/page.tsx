@@ -16,10 +16,7 @@ export default function PdfCompressPage() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const { upload } = useUpload({
-    tool: "pdf-compress",
-    options: { quality: 80 },
-  });
+  const { upload } = useUpload({ tool: "pdf-compress" });
 
   const handleComplete = useCallback(() => setPageState("result"), []);
   const handleError = useCallback(
@@ -58,44 +55,28 @@ export default function PdfCompressPage() {
       title="Compress PDF"
       description="Kecilin ukuran PDF"
       icon={FileImage}
-      phase={2}
+      phase={1}
     >
       {pageState === "upload" && (
         <UploadZone
-          accept="application/pdf"
+          accept=".pdf,application/pdf"
           tool="pdf-compress"
           onUpload={handleUpload}
         />
       )}
 
       {pageState === "processing" && jobId && (
-        <ProgressBar
-          progress={progress}
-          stage={stage}
-          message={message}
-          status={status}
-          onRetry={handleRetry}
-        />
+        <ProgressBar progress={progress} stage={stage} message={message} status={status} onRetry={handleRetry} />
       )}
 
       {pageState === "result" && result && (
-        <ResultPreview
-          result={result}
-          onProcessAnother={handleRetry}
-        />
+        <ResultPreview result={result} onProcessAnother={handleRetry} />
       )}
 
       {pageState === "error" && (
         <div className="p-6 rounded-xl border border-destructive/20 bg-destructive/5 text-center">
-          <p className="text-destructive font-medium mb-4">
-            {errorMsg || "Terjadi kesalahan"}
-          </p>
-          <button
-            onClick={handleRetry}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90"
-          >
-            Coba Lagi
-          </button>
+          <p className="text-destructive font-medium mb-4">{errorMsg || "Terjadi kesalahan"}</p>
+          <button onClick={handleRetry} className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90">Coba Lagi</button>
         </div>
       )}
     </ToolLayout>
