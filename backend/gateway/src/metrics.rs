@@ -97,72 +97,96 @@ impl Metrics {
     pub fn format(&self) -> String {
         let mut output = String::new();
 
+        // ── tools_jobs_total ──
         output.push_str("# HELP tools_jobs_total Total jobs processed\n");
         output.push_str("# TYPE tools_jobs_total counter\n");
-        if let Ok(map) = self.jobs_total.lock() {
-            for ((tool, status), count) in map.iter() {
-                let val = count.load(Ordering::Relaxed);
-                output.push_str(&format!(
-                    "tools_jobs_total{{tool=\"{}\",status=\"{}\"}} {}\n",
-                    tool, status, val
-                ));
+        {
+            if let Ok(map) = self.jobs_total.lock() {
+                if map.is_empty() {
+                    output.push_str("tools_jobs_total{tool=\"\",status=\"\"} 0\n");
+                } else {
+                    for ((tool, status), count) in map.iter() {
+                        let val = count.load(Ordering::Relaxed);
+                        output.push_str(&format!(
+                            "tools_jobs_total{{tool=\"{}\",status=\"{}\"}} {}\n",
+                            tool, status, val
+                        ));
+                    }
+                }
             }
         }
 
+        // ── tools_uploaded_files_total ──
         output.push_str("# HELP tools_uploaded_files_total Total uploaded files\n");
         output.push_str("# TYPE tools_uploaded_files_total counter\n");
-        if let Ok(map) = self.uploaded_files_total.lock() {
-            for ((tool, status), count) in map.iter() {
-                let val = count.load(Ordering::Relaxed);
-                output.push_str(&format!(
-                    "tools_uploaded_files_total{{tool=\"{}\",status=\"{}\"}} {}\n",
-                    tool, status, val
-                ));
+        {
+            if let Ok(map) = self.uploaded_files_total.lock() {
+                if map.is_empty() {
+                    output.push_str("tools_uploaded_files_total{tool=\"\",status=\"\"} 0\n");
+                } else {
+                    for ((tool, status), count) in map.iter() {
+                        let val = count.load(Ordering::Relaxed);
+                        output.push_str(&format!(
+                            "tools_uploaded_files_total{{tool=\"{}\",status=\"{}\"}} {}\n",
+                            tool, status, val
+                        ));
+                    }
+                }
             }
         }
 
+        // ── tools_processing_duration_ms ──
         output.push_str("# HELP tools_processing_duration_ms Processing duration histogram\n");
         output.push_str("# TYPE tools_processing_duration_ms histogram\n");
-        if let Ok(map) = self.duration_histogram.lock() {
-            for (tool, buckets) in map.iter() {
-                for (i, bucket) in self.duration_buckets.iter().enumerate() {
-                    if let Some(b) = buckets.get(i) {
-                        let val = b.load(Ordering::Relaxed);
-                        if val > 0 {
-                            output.push_str(&format!(
-                                "tools_processing_duration_ms_bucket{{tool=\"{}\",le=\"{}\"}} {}\n",
-                                tool, bucket, val
-                            ));
+        {
+            if let Ok(map) = self.duration_histogram.lock() {
+                for (tool, buckets) in map.iter() {
+                    for (i, bucket) in self.duration_buckets.iter().enumerate() {
+                        if let Some(b) = buckets.get(i) {
+                            let val = b.load(Ordering::Relaxed);
+                            if val > 0 {
+                                output.push_str(&format!(
+                                    "tools_processing_duration_ms_bucket{{tool=\"{}\",le=\"{}\"}} {}\n",
+                                    tool, bucket, val
+                                ));
+                            }
                         }
                     }
                 }
             }
         }
 
+        // ── tools_queue_depth ──
         output.push_str("# HELP tools_queue_depth Current queue depth\n");
         output.push_str("# TYPE tools_queue_depth gauge\n");
-        if let Ok(map) = self.queue_depth.lock() {
-            for (tool, depth) in map.iter() {
-                let val = depth.load(Ordering::Relaxed);
-                output.push_str(&format!(
-                    "tools_queue_depth{{tool=\"{}\"}} {}\n",
-                    tool, val
-                ));
+        {
+            if let Ok(map) = self.queue_depth.lock() {
+                for (tool, depth) in map.iter() {
+                    let val = depth.load(Ordering::Relaxed);
+                    output.push_str(&format!(
+                        "tools_queue_depth{{tool=\"{}\"}} {}\n",
+                        tool, val
+                    ));
+                }
             }
         }
 
+        // ── tools_rate_limit_hits ──
         output.push_str("# HELP tools_rate_limit_hits Total rate limit violations\n");
         output.push_str("# TYPE tools_rate_limit_hits counter\n");
-        if let Ok(map) = self.rate_limit_hits.lock() {
-            for (tool, count) in map.iter() {
-                let val = count.load(Ordering::Relaxed);
-                output.push_str(&format!(
-                    "tools_rate_limit_hits{{tool=\"{}\"}} {}\n",
-                    tool, val
-                ));
+        {
+            if let Ok(map) = self.rate_limit_hits.lock() {
+                for (tool, count) in map.iter() {
+                    let val = count.load(Ordering::Relaxed);
+                    output.push_str(&format!(
+                        "tools_rate_limit_hits{{tool=\"{}\"}} {}\n",
+                        tool, val
+                    ));
+                }
             }
         }
 
+        // ── tools_cleanup_deleted_files ──
         output.push_str("# HELP tools_cleanup_deleted_files Total files deleted by cleanup\n");
         output.push_str("# TYPE tools_cleanup_deleted_files counter\n");
         output.push_str(&format!(
