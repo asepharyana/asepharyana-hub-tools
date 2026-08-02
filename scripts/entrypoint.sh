@@ -48,20 +48,20 @@ echo "Starting tools-workers ($WORKER_BIN)..."
 "$WORKER_BIN" &
 WORKER_PID=$!
 
-# ── 4. Start Next.js Frontend (port 3000) ──
+# ── 4. Start Next.js Frontend (port 4007) ──
 
 if command -v bun &>/dev/null && [ -f /app/node_modules/.bin/next ]; then
-  echo "Starting Next.js frontend on port 3000..."
+  echo "Starting Next.js frontend on port 4007..."
   cd /app
-  NODE_ENV=production RUST_GATEWAY_URL=http://localhost:3001 \
-    bun run next start --port 3000 &
+  NODE_ENV=production RUST_GATEWAY_URL=http://localhost:4008 \
+    bun run next start --port 4007 &
   NEXT_PID=$!
   echo "Next.js frontend started (PID: $NEXT_PID)"
 elif command -v node &>/dev/null && [ -f /app/node_modules/.bin/next ]; then
-  echo "Starting Next.js frontend on port 3000..."
+  echo "Starting Next.js frontend on port 4007..."
   cd /app
-  NODE_ENV=production RUST_GATEWAY_URL=http://localhost:3001 \
-    node /app/node_modules/.bin/next start --port 3000 &
+  NODE_ENV=production RUST_GATEWAY_URL=http://localhost:4008 \
+    node /app/node_modules/.bin/next start --port 4007 &
   NEXT_PID=$!
   echo "Next.js frontend started (PID: $NEXT_PID)"
 else
